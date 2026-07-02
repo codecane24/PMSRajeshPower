@@ -1,0 +1,16 @@
+# dependencies
+/node_modules
+/.npm-cache
+
+# Next.js
+/.next
+/out
+
+# local files
+.DS_Store
+*.log
+.env*
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts

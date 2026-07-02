@@ -1,0 +1,33 @@
+{
+  "name": "rajesh-power-admin",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "prisma": "prisma",
+    "db:push": "prisma db push",
+    "migrate:deploy": "prisma migrate deploy",
+    "seed": "node prisma/seed.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^0.468.0",
+    "next": "16.2.9",
+    "pg": "^8.22.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "26.0.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.2.9",
+    "prisma": "^5.22.0",
+    "typescript": "6.0.3"
+  }
+}
