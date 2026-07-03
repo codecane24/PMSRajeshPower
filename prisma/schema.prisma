@@ -9,8 +9,13 @@ datasource db {
 
 model User {
   id           String   @id @default(cuid())
+  code         String?  @unique
   email        String   @unique
   name         String?
+  phone        String?
+  address      String?
+  employeeId   String?  @unique
+  imageUrl     String?
   passwordHash String?
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])

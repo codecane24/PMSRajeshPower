@@ -97,6 +97,25 @@ export async function deleteSubmodule(req: Request) {
   }
 }
 
+export async function createModulePermission(req: Request) {
+  try {
+    const auth = getAuthPayload(req)
+    if (!auth) return jsonResponse({ ok: false, error: 'Unauthorized' }, 401)
+    if (!hasAnyRole(auth, ['admin', 'superuser'])) return jsonResponse({ ok: false, error: 'Forbidden' }, 403)
+    const url = new URL(req.url)
+    const parts = url.pathname.split('/').filter(Boolean)
+    const moduleId = parts[parts.length - 2]
+    const body = await req.json()
+    if (!body.name?.trim() || !body.code?.trim()) return jsonResponse({ ok: false, error: 'name and code are required' }, 400)
+    const action = await service.upsertAction({ name: body.name.trim(), code: body.code.trim() })
+    const permission = await service.createPermission({ moduleId, submoduleId: body.submoduleId || null, actionId: action.id })
+    const full = await service.getPermission(permission.id)
+    return jsonResponse({ ok: true, data: full }, 201)
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err) }, 500)
+  }
+}
+
 export async function createAction(req: Request) {
   try {
     const auth = getAuthPayload(req)

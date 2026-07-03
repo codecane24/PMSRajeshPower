@@ -6,6 +6,17 @@ async function jsonResponse(data: any, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } })
 }
 
+export async function previewUserCode(req: Request) {
+  try {
+    const auth = getAuthPayload(req)
+    if (!auth) return jsonResponse({ ok: false, error: 'Unauthorized' }, 401)
+    const code = await service.previewUserCode()
+    return jsonResponse({ ok: true, data: { code } })
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err) }, 500)
+  }
+}
+
 export async function listUsers(req: Request) {
   try {
     const auth = getAuthPayload(req)

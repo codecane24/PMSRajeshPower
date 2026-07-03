@@ -1,8 +1,8 @@
 import prisma from '../../../lib/prisma'
 import { UserDTO } from './types'
 
-export async function createUser(data: { email: string; name?: string | null; passwordHash?: string | null; departmentId?: string | null }): Promise<UserDTO> {
-  const created = await prisma.user.create({ data: { email: data.email, name: data.name, passwordHash: data.passwordHash, departmentId: data.departmentId } })
+export async function createUser(data: { email: string; name?: string | null; passwordHash?: string | null; departmentId?: string | null; code?: string | null; phone?: string | null; address?: string | null; employeeId?: string | null; imageUrl?: string | null }): Promise<UserDTO> {
+  const created = await prisma.user.create({ data: { email: data.email, name: data.name, passwordHash: data.passwordHash, departmentId: data.departmentId, code: data.code, phone: data.phone, address: data.address, employeeId: data.employeeId, imageUrl: data.imageUrl } })
   return map(created)
 }
 
@@ -25,7 +25,7 @@ export async function listUsers(): Promise<UserDTO[]> {
   return filtered.map(map)
 }
 
-export async function updateUser(id: string, data: { name?: string | null; isActive?: boolean; departmentId?: string | null }) {
+export async function updateUser(id: string, data: { name?: string | null; isActive?: boolean; departmentId?: string | null; phone?: string | null; address?: string | null; employeeId?: string | null; imageUrl?: string | null }) {
   const updated = await prisma.user.update({ where: { id }, data })
   return map(updated)
 }
@@ -54,13 +54,17 @@ export async function removeRole(userId: string, roleId: string) {
 function map(u: any): UserDTO {
   return {
     id: u.id,
+    code: u.code ?? null,
     email: u.email,
     name: u.name ?? null,
+    phone: u.phone ?? null,
+    address: u.address ?? null,
+    employeeId: u.employeeId ?? null,
+    imageUrl: u.imageUrl ?? null,
     isActive: u.isActive,
     departmentId: u.departmentId ?? null,
     departmentName: u.department?.name ?? null,
     roles: (u.roles || []).map((rr: any) => rr.role.name),
-    phone: u.phone ?? null,
     lastLogin: u.lastLogin ? new Date(u.lastLogin).toISOString() : u.updatedAt.toISOString(),
     createdAt: u.createdAt.toISOString(),
     updatedAt: u.updatedAt.toISOString(),

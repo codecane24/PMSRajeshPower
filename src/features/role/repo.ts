@@ -15,7 +15,7 @@ export async function getRole(id: string) {
   return prisma.role.findUnique({ where: { id } })
 }
 
-export async function updateRole(id: string, data: { description?: string | null }) {
+export async function updateRole(id: string, data: { name: string; description?: string | null }) {
   return prisma.role.update({ where: { id }, data })
 }
 

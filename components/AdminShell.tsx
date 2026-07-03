@@ -81,11 +81,16 @@ type ModuleRecord = {
 
 type UserRow = {
   id: string;
+  code?: string | null;
   name: string | null;
   email: string;
   roles: string[];
   departmentName: string | null;
+  departmentId?: string | null;
   phone?: string | null;
+  address?: string | null;
+  employeeId?: string | null;
+  imageUrl?: string | null;
   isActive: boolean;
   lastLogin: string;
   updatedAt: string;
@@ -298,6 +303,38 @@ export default function AdminShell() {
   const [editingSubmodule, setEditingSubmodule] = useState<{ id: string; name: string } | null>(null);
   const [editSubmoduleName, setEditSubmoduleName] = useState('');
   const [isDeletingSubmodule, setIsDeletingSubmodule] = useState<string | null>(null);
+
+  // User form states
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserRow | null>(null);
+  const [userFormData, setUserFormData] = useState({ name: '', email: '', password: '', phone: '', address: '', employeeId: '', departmentId: '', imageUrl: '', isActive: true });
+  const [previewUserCode, setPreviewUserCode] = useState<string | null>(null);
+  const [isSubmittingUser, setIsSubmittingUser] = useState(false);
+  const [userSuccessMessage, setUserSuccessMessage] = useState<string | null>(null);
+  const [userImagePreview, setUserImagePreview] = useState<string | null>(null);
+
+  // Role edit states
+  const [editingRole, setEditingRole] = useState<RoleRow | null>(null);
+  const [roleFormData, setRoleFormData] = useState({ name: '', description: '' });
+  const [isSubmittingRole, setIsSubmittingRole] = useState(false);
+  const [showRoleForm, setShowRoleForm] = useState(false);
+
+  // Department form states
+  const [showDeptForm, setShowDeptForm] = useState(false);
+  const [editingDept, setEditingDept] = useState<DepartmentRow | null>(null);
+  const [deptFormData, setDeptFormData] = useState({ name: '', description: '' });
+  const [isSubmittingDept, setIsSubmittingDept] = useState(false);
+
+  // Permission CRUD states
+  const [permName, setPermName] = useState('');
+  const [permKey, setPermKey] = useState('');
+  const [permSubmoduleId, setPermSubmoduleId] = useState('');
+  const [isAddingPermission, setIsAddingPermission] = useState(false);
+  const [editingPermission, setEditingPermission] = useState<PermissionRecord | null>(null);
+  const [editPermName, setEditPermName] = useState('');
+  const [editPermKey, setEditPermKey] = useState('');
+  const [editPermSubmoduleId, setEditPermSubmoduleId] = useState('');
+  const [isDeletingPermission, setIsDeletingPermission] = useState<string | null>(null);
 
   const today = useMemo(
     () =>
@@ -631,6 +668,160 @@ export default function AdminShell() {
     }
   }
 
+  async function handleSaveUser() {
+    if (!userFormData.email.trim()) return;
+    setIsSubmittingUser(true);
+    try {
+      const url = editingUser ? `/api/users/${editingUser.id}` : '/api/users';
+      const method = editingUser ? 'PUT' : 'POST';
+      const payload: any = { name: userFormData.name.trim() || null, phone: userFormData.phone.trim() || null, address: userFormData.address.trim() || null, employeeId: userFormData.employeeId.trim() || null, departmentId: userFormData.departmentId || null, isActive: userFormData.isActive, imageUrl: userImagePreview || userFormData.imageUrl || null };
+      if (!editingUser) { payload.email = userFormData.email.trim(); payload.password = userFormData.password; }
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        const refreshed = await fetch('/api/users');
+        const rd = await refreshed.json();
+        if (rd.ok) setUsers(rd.data);
+        setUserSuccessMessage(editingUser ? `User "${data.data.name || data.data.email}" updated.` : `User "${data.data.name || data.data.email}" created.`);
+        setShowUserForm(false); setEditingUser(null); setUserFormData({ name: '', email: '', password: '', phone: '', address: '', employeeId: '', departmentId: '', imageUrl: '', isActive: true }); setUserImagePreview(null);
+        setTimeout(() => setUserSuccessMessage(null), 3000);
+      } else { alert(`Error: ${data.error}`); }
+    } catch (err) { console.error(err); } finally { setIsSubmittingUser(false); }
+  }
+
+  async function openUserForm(user?: UserRow) {
+    if (user) {
+      setEditingUser(user);
+      setUserFormData({ name: user.name || '', email: user.email, password: '', phone: user.phone || '', address: user.address || '', employeeId: user.employeeId || '', departmentId: user.departmentId || '', imageUrl: user.imageUrl || '', isActive: user.isActive });
+      setUserImagePreview(user.imageUrl || null);
+    } else {
+      setEditingUser(null);
+      setUserFormData({ name: '', email: '', password: '', phone: '', address: '', employeeId: '', departmentId: '', imageUrl: '', isActive: true });
+      setUserImagePreview(null);
+      try { const r = await fetch('/api/users/preview-code'); const d = await r.json(); if (d.ok) setPreviewUserCode(d.data.code); } catch {}
+    }
+    setShowUserForm(true);
+  }
+
+  function handleUserImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setUserImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  async function handleSaveRole() {
+    if (!roleFormData.name.trim()) return;
+    setIsSubmittingRole(true);
+    try {
+      const url = editingRole ? `/api/roles/${editingRole.id}` : '/api/roles';
+      const method = editingRole ? 'PUT' : 'POST';
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: roleFormData.name.trim(), description: roleFormData.description.trim() || null }) });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        const refreshed = await fetch('/api/roles'); const rd = await refreshed.json(); if (rd.ok) setRoles(rd.data);
+        setShowRoleForm(false); setEditingRole(null); setRoleFormData({ name: '', description: '' });
+      } else { alert(`Error: ${data.error}`); }
+    } catch (err) { console.error(err); } finally { setIsSubmittingRole(false); }
+  }
+
+  async function handleSaveDept() {
+    if (!deptFormData.name.trim()) return;
+    setIsSubmittingDept(true);
+    try {
+      const url = editingDept ? `/api/departments/${editingDept.id}` : '/api/departments';
+      const method = editingDept ? 'PUT' : 'POST';
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: deptFormData.name.trim(), description: deptFormData.description.trim() || null }) });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        const refreshed = await fetch('/api/departments'); const rd = await refreshed.json(); if (rd.ok) setDepartments(rd.data);
+        setShowDeptForm(false); setEditingDept(null); setDeptFormData({ name: '', description: '' });
+      } else { alert(`Error: ${data.error}`); }
+    } catch (err) { console.error(err); } finally { setIsSubmittingDept(false); }
+  }
+
+  async function handleDeleteDept(id: string) {
+    if (!confirm('Delete this department?')) return;
+    try {
+      const res = await fetch(`/api/departments/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data.ok) setDepartments(departments.filter(d => d.id !== id));
+      else alert(`Error: ${data.error}`);
+    } catch (err) { console.error(err); }
+  }
+
+  function toPermKey(name: string) {
+    return name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+  }
+
+  async function handleAddPermission() {
+    if (!viewingModule || !permName.trim() || !permKey.trim()) return;
+    setIsAddingPermission(true);
+    try {
+      const res = await fetch(`/api/modules/${viewingModule.id}/permissions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: permName.trim(), code: permKey.trim(), submoduleId: permSubmoduleId || null }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        const updated = { ...viewingModule, permissions: [...viewingModule.permissions, data.data] };
+        setViewingModule(updated);
+        setModules(modules.map(m => m.id === viewingModule.id ? updated : m));
+        setPermName(''); setPermKey(''); setPermSubmoduleId('');
+      } else {
+        alert(`Error: ${data.error}`);
+      }
+    } catch (err) {
+      console.error('Failed to add permission', err);
+    } finally {
+      setIsAddingPermission(false);
+    }
+  }
+
+  async function handleUpdatePermission() {
+    if (!viewingModule || !editingPermission || !editPermName.trim() || !editPermKey.trim()) return;
+    try {
+      const res = await fetch(`/api/permissions/${editingPermission.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editPermName.trim(), code: editPermKey.trim(), submoduleId: editPermSubmoduleId || null }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        const updated = { ...viewingModule, permissions: viewingModule.permissions.map(p => p.id === editingPermission.id ? data.data : p) };
+        setViewingModule(updated);
+        setModules(modules.map(m => m.id === viewingModule.id ? updated : m));
+        setEditingPermission(null); setEditPermName(''); setEditPermKey(''); setEditPermSubmoduleId('');
+      } else {
+        alert(`Error: ${data.error}`);
+      }
+    } catch (err) {
+      console.error('Failed to update permission', err);
+    }
+  }
+
+  async function handleDeletePermission(permId: string) {
+    if (!viewingModule) return;
+    setIsDeletingPermission(permId);
+    try {
+      const res = await fetch(`/api/permissions/${permId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        const updated = { ...viewingModule, permissions: viewingModule.permissions.filter(p => p.id !== permId) };
+        setViewingModule(updated);
+        setModules(modules.map(m => m.id === viewingModule.id ? updated : m));
+      } else {
+        alert(`Error: ${data.error}`);
+      }
+    } catch (err) {
+      console.error('Failed to delete permission', err);
+    } finally {
+      setIsDeletingPermission(null);
+    }
+  }
+
   async function handleLogout() {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
@@ -712,7 +903,7 @@ export default function AdminShell() {
           ))}
         </nav>
 
-        <div className="sidebar-card">
+        <div className="sidebar-card hidden">
           <div className="sidebar-card-icon"><Sparkles size={18} /></div>
           <strong>Need a hand?</strong>
           <p>Our support team is ready to help.</p>
@@ -827,18 +1018,19 @@ export default function AdminShell() {
         </nav>
 
         <main className="dashboard-content">
+          {activeNav === "Overview" && (
           <div className="page-heading">
             <div>
               <span className="mobile-date">{today}</span>
-              <h1>{activeNav === "Overview" ? "Good morning, Rajesh" : activeNav}</h1>
-              <p>{activeNav === "Overview" ? "Here’s what’s happening across your operations today." : `Manage and review ${activeNav.toLowerCase()} across Rajesh Power.`}</p>
+              <h1>Good morning, Rajesh</h1>
+              <p>Here’s what’s happening across your operations today.</p>
             </div>
             <div className="heading-actions">
               <button className="secondary-button"><Download size={17} /> Export report</button>
               <button className="primary-button"><Plus size={18} /> New work order</button>
             </div>
           </div>
-
+          )}
           {activeNav === "Modules" ? (
             <section className="modules-view">
 
@@ -976,22 +1168,67 @@ export default function AdminShell() {
                     {/* Permissions */}
                     <div className="mod-view-col">
                       <div className="sp-view-section-label">Permissions</div>
-                      {viewingModule.permissions.length === 0 ? (
-                        <p className="sp-no-comments">No permissions assigned.</p>
+                      {viewingModule.permissions.length === 0 && !editingPermission ? (
+                        <p className="sp-no-comments">No permissions yet.</p>
                       ) : (
                         <div className="mod-perm-list">
-                          {viewingModule.permissions.map(perm => {
-                            const label = perm.action ? `${perm.action.name} (${perm.action.code})` : perm.description || 'Permission';
-                            const sub = perm.submodule ? perm.submodule.name : null;
-                            return (
-                              <div key={perm.id} className="mod-perm-item">
-                                <span className="mod-perm-action">{label}</span>
-                                {sub && <span className="mod-perm-sub">{sub}</span>}
-                              </div>
-                            );
-                          })}
+                          {viewingModule.permissions.map(perm => (
+                            <div key={perm.id} className="mod-perm-item">
+                              {editingPermission?.id === perm.id ? (
+                                <div className="perm-edit-row">
+                                  <input type="text" className="sp-comment-input" placeholder="Name" value={editPermName}
+                                    onChange={e => { setEditPermName(e.target.value); setEditPermKey(toPermKey(e.target.value)); }} autoFocus />
+                                  <input type="text" className="sp-comment-input" placeholder="Key" value={editPermKey}
+                                    onChange={e => setEditPermKey(e.target.value)} />
+                                  <select className="sp-comment-input" value={editPermSubmoduleId} onChange={e => setEditPermSubmoduleId(e.target.value)}>
+                                    <option value="">No submodule</option>
+                                    {viewingModule.submodules.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                  </select>
+                                  <div className="sp-row-actions" style={{ marginTop: 4 }}>
+                                    <button className="row-action row-action-edit" title="Save" onClick={handleUpdatePermission} disabled={!editPermName.trim() || !editPermKey.trim()}><Check size={14} /></button>
+                                    <button className="row-action" title="Cancel" onClick={() => { setEditingPermission(null); setEditPermName(''); setEditPermKey(''); setEditPermSubmoduleId(''); }}><X size={14} /></button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="mod-perm-details">
+                                    <span className="mod-perm-action">{perm.action?.name || perm.description || 'Permission'}</span>
+                                    <code className="mod-perm-code">{perm.action?.code}</code>
+                                    {perm.submodule && <span className="mod-perm-sub">{perm.submodule.name}</span>}
+                                  </div>
+                                  <div className="sp-row-actions">
+                                    <button className="row-action row-action-edit" title="Edit" onClick={() => {
+                                      setEditingPermission(perm);
+                                      setEditPermName(perm.action?.name || '');
+                                      setEditPermKey(perm.action?.code || '');
+                                      setEditPermSubmoduleId(perm.submodule?.id || '');
+                                    }}><Pencil size={14} /></button>
+                                    <button className="row-action row-action-delete" title="Delete" onClick={() => handleDeletePermission(perm.id)} disabled={isDeletingPermission === perm.id}>
+                                      {isDeletingPermission === perm.id ? '…' : <Trash2 size={14} />}
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       )}
+                      {/* Add permission form */}
+                      <div className="perm-add-form">
+                        <input type="text" className="sp-comment-input" placeholder="Name  (e.g. User Create)"
+                          value={permName}
+                          onChange={e => { setPermName(e.target.value); setPermKey(toPermKey(e.target.value)); }} />
+                        <input type="text" className="sp-comment-input" placeholder="Key  (e.g. user_create)"
+                          value={permKey} onChange={e => setPermKey(e.target.value)} />
+                        <select className="sp-comment-input" value={permSubmoduleId} onChange={e => setPermSubmoduleId(e.target.value)}>
+                          <option value="">No submodule</option>
+                          {viewingModule.submodules.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                        <button className="primary-button" onClick={handleAddPermission}
+                          disabled={isAddingPermission || !permName.trim() || !permKey.trim()}>
+                          {isAddingPermission ? '…' : '+ Add'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1061,57 +1298,93 @@ export default function AdminShell() {
               </div>
             </section>
           ) : activeNav === "Users" ? (
-            <section className="users-view">
+            <section className="p-0">
+              {/* Header */}
               <div className="panel-header section-header">
-                <div>
-                  <span className="eyebrow">User Management</span>
-                  <h2>Users</h2>
-                  <p>Manage your active users, roles, departments, and connection details.</p>
-                </div>
-                <button className="primary-button" onClick={() => setActiveNav("Overview")}><Home size={17} /> Back to overview</button>
+                <div><span className="eyebrow">User Management</span><h2>Users</h2><p>Manage users, roles and departments.</p></div>
+                <button className="primary-button" onClick={() => openUserForm()}><Plus size={17} /> New User</button>
               </div>
+              {userSuccessMessage && <div className="success-alert"><CheckCircle2 size={18} /><span>{userSuccessMessage}</span></div>}
 
+              {/* User Form Modal */}
+              {showUserForm && (
+                <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 overflow-y-auto py-8">
+                  <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                      <div><p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">{editingUser ? 'Edit User' : 'New User'}</p><h3 className="text-lg font-bold text-gray-900">{editingUser ? `Editing: ${editingUser.name || editingUser.email}` : 'Create New User'}</h3></div>
+                      <button onClick={() => { setShowUserForm(false); setEditingUser(null); }} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500"><X size={18} /></button>
+                    </div>
+                    <div className="flex gap-0 p-6">
+                      {/* Left panel */}
+                      <div className="flex flex-col items-center gap-3 w-48 shrink-0 pr-6 border-r border-gray-100">
+                        <div className="w-24 h-24 rounded-2xl bg-gray-100 border-2 border-dashed border-gray-300 overflow-hidden flex items-center justify-center">
+                          {userImagePreview ? <img src={userImagePreview} alt="avatar" className="w-full h-full object-cover" /> : <UserRound size={36} className="text-gray-300" />}
+                        </div>
+                        <label className="cursor-pointer text-xs font-semibold text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg px-3 py-1.5 hover:bg-blue-50 transition-colors">
+                          Upload Photo<input type="file" accept="image/*" className="hidden" onChange={handleUserImage} />
+                        </label>
+                        {!editingUser && previewUserCode && (
+                          <div className="mt-2 text-center"><p className="text-xs text-gray-400 mb-1">User Code</p><span className="text-sm font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-lg">{previewUserCode}</span></div>
+                        )}
+                        {editingUser?.code && (
+                          <div className="mt-2 text-center"><p className="text-xs text-gray-400 mb-1">User Code</p><span className="text-sm font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-lg">{editingUser.code}</span></div>
+                        )}
+                        <div className="mt-auto w-full">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={userFormData.isActive} onChange={e => setUserFormData({...userFormData, isActive: e.target.checked})} className="w-4 h-4 accent-blue-600" />
+                            <span className="text-sm text-gray-600 font-medium">Active</span>
+                          </label>
+                        </div>
+                      </div>
+                      {/* Right form */}
+                      <div className="flex-1 pl-6 grid grid-cols-2 gap-4">
+                        <div className="col-span-2 grid grid-cols-2 gap-4">
+                          <div><label className="block text-xs font-semibold text-gray-500 mb-1">Full Name</label><input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. Rajesh Kumar" value={userFormData.name} onChange={e => setUserFormData({...userFormData, name: e.target.value})} /></div>
+                          <div><label className="block text-xs font-semibold text-gray-500 mb-1">Employee ID</label><input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="e.g. EMP001" value={userFormData.employeeId} onChange={e => setUserFormData({...userFormData, employeeId: e.target.value})} /></div>
+                        </div>
+                        <div><label className="block text-xs font-semibold text-gray-500 mb-1">Email <span className="text-red-400">*</span></label><input type="email" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="user@company.com" value={userFormData.email} onChange={e => setUserFormData({...userFormData, email: e.target.value})} disabled={!!editingUser} /></div>
+                        <div><label className="block text-xs font-semibold text-gray-500 mb-1">Phone</label><input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="+91 98765 43210" value={userFormData.phone} onChange={e => setUserFormData({...userFormData, phone: e.target.value})} /></div>
+                        {!editingUser && <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 mb-1">Password <span className="text-red-400">*</span></label><input type="password" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Min 6 characters" value={userFormData.password} onChange={e => setUserFormData({...userFormData, password: e.target.value})} /></div>}
+                        <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 mb-1">Address</label><input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" placeholder="Street, City, State" value={userFormData.address} onChange={e => setUserFormData({...userFormData, address: e.target.value})} /></div>
+                        <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 mb-1">Department</label>
+                          <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" value={userFormData.departmentId} onChange={e => setUserFormData({...userFormData, departmentId: e.target.value})}>
+                            <option value="">No department</option>
+                            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+                      <button onClick={() => { setShowUserForm(false); setEditingUser(null); }} className="secondary-button" disabled={isSubmittingUser}>Cancel</button>
+                      <button onClick={handleSaveUser} className="primary-button" disabled={isSubmittingUser || !userFormData.email.trim() || (!editingUser && !userFormData.password)}>{isSubmittingUser ? 'Saving…' : editingUser ? 'Save Changes' : 'Create User'}</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Table */}
               <div className="panel user-table-panel">
                 <div className="table-scroll">
                   <table className="module-table">
-                    <thead>
-                      <tr>
-                        <th>S. No</th>
-                        <th>Name</th>
-                        <th>Role & department</th>
-                        <th>Phone & email</th>
-                        <th>Status</th>
-                        <th>Last login</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
+                    <thead><tr><th>#</th><th>Code</th><th>Name & Email</th><th>Department</th><th>Phone</th><th>Role</th><th>Status</th><th>Action</th></tr></thead>
                     <tbody>
-                      {loadingUsers ? (
-                        <tr><td colSpan={7}>Loading users…</td></tr>
-                      ) : users.length === 0 ? (
-                        <tr><td colSpan={7}>No users available.</td></tr>
-                      ) : users.map((userRow, index) => (
-                        <tr key={userRow.id}>
-                          <td>{index + 1}</td>
+                      {loadingUsers ? <tr><td colSpan={8} className="text-center py-8 text-gray-400">Loading users…</td></tr>
+                      : users.length === 0 ? <tr><td colSpan={8} className="text-center py-8 text-gray-400">No users found. Click New User to create one.</td></tr>
+                      : users.map((u, i) => (
+                        <tr key={u.id}>
+                          <td>{i + 1}</td>
+                          <td><code className="sp-ticket-code">{u.code || '—'}</code></td>
                           <td>
-                            <strong>{userRow.name || 'Unknown'}</strong>
-                            <small>{userRow.email}</small>
+                            <div className="flex items-center gap-2">
+                              {u.imageUrl ? <img src={u.imageUrl} className="w-8 h-8 rounded-lg object-cover shrink-0" alt="" /> : <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0"><UserRound size={16} className="text-blue-400" /></div>}
+                              <div><div className="font-semibold text-gray-900">{u.name || 'Unknown'}</div><div className="text-xs text-gray-400">{u.email}</div></div>
+                            </div>
                           </td>
-                          <td>
-                            <div>{userRow.roles.length > 0 ? userRow.roles.join(', ') : 'No role assigned'}</div>
-                            <small>{userRow.departmentName || 'No department'}</small>
-                          </td>
-                          <td>
-                            <div>{userRow.phone || '-'} </div>
-                            <small>{userRow.email}</small>
-                          </td>
-                          <td>
-                            <span className={`status ${userRow.isActive ? 'active' : 'inactive'}`}>
-                              {userRow.isActive ? 'Active' : 'Inactive'}
-                            </span>
-                          </td>
-                          <td>{new Date(userRow.lastLogin).toLocaleString('en-IN', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                          <td><button className="row-action" title="View"><Eye size={15} /></button></td>
+                          <td>{u.departmentName || <em className="text-gray-400">—</em>}</td>
+                          <td>{u.phone || <em className="text-gray-400">—</em>}</td>
+                          <td>{u.roles.length > 0 ? u.roles.join(', ') : <em className="text-gray-400">—</em>}</td>
+                          <td><span className={`status ${u.isActive ? 'active' : 'inactive'}`}>{u.isActive ? 'Active' : 'Inactive'}</span></td>
+                          <td><div className="sp-row-actions"><button className="row-action row-action-edit" title="Edit" onClick={() => openUserForm(u)}><Pencil size={14} /></button></div></td>
                         </tr>
                       ))}
                     </tbody>
@@ -1119,41 +1392,45 @@ export default function AdminShell() {
                 </div>
               </div>
             </section>
+
           ) : activeNav === "Roles" ? (
-            <section className="roles-view">
+            <section>
               <div className="panel-header section-header">
-                <div>
-                  <span className="eyebrow">User Management</span>
-                  <h2>Roles</h2>
-                  <p>Review role definitions and manage access levels without superuser roles.</p>
-                </div>
-                <button className="primary-button" onClick={() => setActiveNav("Overview")}><Home size={17} /> Back to overview</button>
+                <div><span className="eyebrow">User Management</span><h2>Roles</h2><p>Manage access roles and descriptions.</p></div>
+                <button className="primary-button" onClick={() => { setEditingRole(null); setRoleFormData({ name: '', description: '' }); setShowRoleForm(true); }}><Plus size={17} /> New Role</button>
               </div>
+
+              {(showRoleForm || editingRole) && (
+                <div className="sp-form-card" style={{ borderTop: editingRole ? '3px solid #f59e0b' : '3px solid #3b82f6' }}>
+                  <div className="sp-form-header">
+                    <div className="sp-form-title-block"><span className="sp-form-eyebrow">{editingRole ? 'Edit Role' : 'New Role'}</span><h3>{editingRole ? `Editing: ${editingRole.name}` : 'Create New Role'}</h3></div>
+                    <button className="close-btn" onClick={() => { setShowRoleForm(false); setEditingRole(null); }}><X size={18} /></button>
+                  </div>
+                  <div className="sp-form-body">
+                    <div className="sp-section-row sp-row-2col">
+                      <div className="form-group"><label>Role Name</label><input placeholder="e.g. Manager, Technician" value={roleFormData.name} onChange={e => setRoleFormData({...roleFormData, name: e.target.value})} /></div>
+                      <div className="form-group"><label>Description <span className="optional-tag">Optional</span></label><input placeholder="Brief description" value={roleFormData.description} onChange={e => setRoleFormData({...roleFormData, description: e.target.value})} /></div>
+                    </div>
+                  </div>
+                  <div className="sp-form-footer">
+                    <button className="secondary-button" onClick={() => { setShowRoleForm(false); setEditingRole(null); }} disabled={isSubmittingRole}>Cancel</button>
+                    <button className="primary-button" onClick={handleSaveRole} disabled={isSubmittingRole || !roleFormData.name.trim()}>{isSubmittingRole ? 'Saving…' : editingRole ? 'Save Changes' : 'Create Role'}</button>
+                  </div>
+                </div>
+              )}
 
               <div className="panel module-table-panel">
                 <div className="table-scroll">
                   <table className="module-table">
-                    <thead>
-                      <tr>
-                        <th>S. No</th>
-                        <th>Role name</th>
-                        <th>Description</th>
-                        <th>Created</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
+                    <thead><tr><th>#</th><th>Role Name</th><th>Description</th><th>Created</th><th>Action</th></tr></thead>
                     <tbody>
-                      {loadingRoles ? (
-                        <tr><td colSpan={5}>Loading roles…</td></tr>
-                      ) : roles.length === 0 ? (
-                        <tr><td colSpan={5}>No roles found.</td></tr>
-                      ) : roles.map((roleRow, index) => (
-                        <tr key={roleRow.id}>
-                          <td>{index + 1}</td>
-                          <td><strong>{roleRow.name}</strong></td>
-                          <td>{roleRow.description || 'No description'}</td>
-                          <td>{new Date(roleRow.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
-                          <td><button className="row-action row-action-edit" title="Edit"><Pencil size={14} /></button></td>
+                      {loadingRoles ? <tr><td colSpan={5}>Loading…</td></tr>
+                      : roles.length === 0 ? <tr><td colSpan={5}>No roles found.</td></tr>
+                      : roles.map((r, i) => (
+                        <tr key={r.id}>
+                          <td>{i + 1}</td><td><strong>{r.name}</strong></td><td>{r.description || '—'}</td>
+                          <td>{new Date(r.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                          <td><div className="sp-row-actions"><button className="row-action row-action-edit" title="Edit" onClick={() => { setEditingRole(r); setRoleFormData({ name: r.name, description: r.description || '' }); setShowRoleForm(true); }}><Pencil size={14} /></button></div></td>
                         </tr>
                       ))}
                     </tbody>
@@ -1161,41 +1438,47 @@ export default function AdminShell() {
                 </div>
               </div>
             </section>
+
           ) : activeNav === "Departments" ? (
-            <section className="departments-view">
+            <section>
               <div className="panel-header section-header">
-                <div>
-                  <span className="eyebrow">User Management</span>
-                  <h2>Departments</h2>
-                  <p>View department groups and the number of users assigned to each.</p>
-                </div>
-                <button className="primary-button" onClick={() => setActiveNav("Overview")}><Home size={17} /> Back to overview</button>
+                <div><span className="eyebrow">User Management</span><h2>Departments</h2><p>Manage department groups and user assignments.</p></div>
+                <button className="primary-button" onClick={() => { setEditingDept(null); setDeptFormData({ name: '', description: '' }); setShowDeptForm(true); }}><Plus size={17} /> New Department</button>
               </div>
+
+              {(showDeptForm || editingDept) && (
+                <div className="sp-form-card" style={{ borderTop: editingDept ? '3px solid #f59e0b' : '3px solid #3b82f6' }}>
+                  <div className="sp-form-header">
+                    <div className="sp-form-title-block"><span className="sp-form-eyebrow">{editingDept ? 'Edit Department' : 'New Department'}</span><h3>{editingDept ? `Editing: ${editingDept.name}` : 'Create New Department'}</h3></div>
+                    <button className="close-btn" onClick={() => { setShowDeptForm(false); setEditingDept(null); }}><X size={18} /></button>
+                  </div>
+                  <div className="sp-form-body">
+                    <div className="sp-section-row sp-row-2col">
+                      <div className="form-group"><label>Department Name</label><input placeholder="e.g. Engineering, Operations" value={deptFormData.name} onChange={e => setDeptFormData({...deptFormData, name: e.target.value})} /></div>
+                      <div className="form-group"><label>Description <span className="optional-tag">Optional</span></label><input placeholder="Brief description" value={deptFormData.description} onChange={e => setDeptFormData({...deptFormData, description: e.target.value})} /></div>
+                    </div>
+                  </div>
+                  <div className="sp-form-footer">
+                    <button className="secondary-button" onClick={() => { setShowDeptForm(false); setEditingDept(null); }} disabled={isSubmittingDept}>Cancel</button>
+                    <button className="primary-button" onClick={handleSaveDept} disabled={isSubmittingDept || !deptFormData.name.trim()}>{isSubmittingDept ? 'Saving…' : editingDept ? 'Save Changes' : 'Create Department'}</button>
+                  </div>
+                </div>
+              )}
 
               <div className="panel module-table-panel">
                 <div className="table-scroll">
                   <table className="module-table">
-                    <thead>
-                      <tr>
-                        <th>S. No</th>
-                        <th>Department</th>
-                        <th>Description</th>
-                        <th>User count</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
+                    <thead><tr><th>#</th><th>Department</th><th>Description</th><th>Users</th><th>Action</th></tr></thead>
                     <tbody>
-                      {loadingDepartments ? (
-                        <tr><td colSpan={5}>Loading departments…</td></tr>
-                      ) : departments.length === 0 ? (
-                        <tr><td colSpan={5}>No departments found.</td></tr>
-                      ) : departments.map((department, index) => (
-                        <tr key={department.id}>
-                          <td>{index + 1}</td>
-                          <td><strong>{department.name}</strong></td>
-                          <td>{department.description || 'No description'}</td>
-                          <td>{department.userCount}</td>
-                          <td><button className="row-action" title="Manage"><SlidersHorizontal size={14} /></button></td>
+                      {loadingDepartments ? <tr><td colSpan={5}>Loading…</td></tr>
+                      : departments.length === 0 ? <tr><td colSpan={5}>No departments found.</td></tr>
+                      : departments.map((d, i) => (
+                        <tr key={d.id}>
+                          <td>{i + 1}</td><td><strong>{d.name}</strong></td><td>{d.description || '—'}</td><td>{d.userCount}</td>
+                          <td><div className="sp-row-actions">
+                            <button className="row-action row-action-edit" title="Edit" onClick={() => { setEditingDept(d); setDeptFormData({ name: d.name, description: d.description || '' }); setShowDeptForm(true); }}><Pencil size={14} /></button>
+                            <button className="row-action row-action-delete" title="Delete" onClick={() => handleDeleteDept(d.id)}><Trash2 size={14} /></button>
+                          </div></td>
                         </tr>
                       ))}
                     </tbody>
@@ -1525,7 +1808,7 @@ export default function AdminShell() {
                 </div>
               </div>
             </section>
-          ) : (
+          ) : activeNav === "Overview" ? (
             <>
               <section className="stats-grid">
                 {stats.map((stat) => {
@@ -1640,6 +1923,21 @@ export default function AdminShell() {
                 </article>
               </section>
             </>
+          ) : (
+            <section className="blank-view">
+              <div className="panel-header section-header">
+                <div>
+                  <span className="eyebrow">Navigation</span>
+                  <h2>{activeNav}</h2>
+                  <p>This section is currently under development.</p>
+                </div>
+              </div>
+              <div className="blank-placeholder">
+                <div className="blank-placeholder-icon"><PackageCheck size={40} strokeWidth={1.4} /></div>
+                <h3>Coming Soon</h3>
+                <p>The <strong>{activeNav}</strong> page is being built. Check back soon.</p>
+              </div>
+            </section>
           )}
         </main>
 

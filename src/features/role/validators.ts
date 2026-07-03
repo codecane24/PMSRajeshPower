@@ -9,9 +9,10 @@ export function validateCreateRole(body: any): ValidationResult<{ name: string; 
   return { valid: true, value: { name: name.trim(), description: description?.trim() ?? null } }
 }
 
-export function validateUpdateRole(body: any): ValidationResult<{ description: string | null }> {
+export function validateUpdateRole(body: any): ValidationResult<{ name: string; description: string | null }> {
   if (!body || typeof body !== 'object') return { valid: false, error: 'Invalid body' }
-  const { description } = body
+  const { name, description } = body
+  if (!name || typeof name !== 'string') return { valid: false, error: 'name is required' }
   if (description !== undefined && typeof description !== 'string') return { valid: false, error: 'description must be string' }
-  return { valid: true, value: { description: description?.trim() ?? null } }
+  return { valid: true, value: { name: name.trim(), description: description?.trim() ?? null } }
 }

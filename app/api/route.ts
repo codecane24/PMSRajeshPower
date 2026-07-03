@@ -13,6 +13,7 @@ const routes = [
   { method: 'GET', path: /^\/api\/db-test\/?$/, handler: dbController.getDbTest },
 
   // Users
+  { method: 'GET', path: /^\/api\/users\/preview-code\/?$/, handler: userController.previewUserCode },
   { method: 'GET', path: /^\/api\/users\/?$/, handler: userController.listUsers },
   { method: 'POST', path: /^\/api\/users\/?$/, handler: userController.createUser },
   { method: 'GET', path: /^\/api\/users\/[a-zA-Z0-9_-]+\/?$/, handler: userController.getUser },
@@ -37,14 +38,20 @@ const routes = [
   { method: 'POST', path: /^\/api\/modules\/[a-zA-Z0-9_-]+\/submodules\/?$/, handler: moduleController.createSubmodule },
   { method: 'PUT', path: /^\/api\/modules\/[a-zA-Z0-9_-]+\/submodules\/[a-zA-Z0-9_-]+\/?$/, handler: moduleController.updateSubmodule },
   { method: 'DELETE', path: /^\/api\/modules\/[a-zA-Z0-9_-]+\/submodules\/[a-zA-Z0-9_-]+\/?$/, handler: moduleController.deleteSubmodule },
+  { method: 'POST', path: /^\/api\/modules\/[a-zA-Z0-9_-]+\/permissions\/?$/, handler: moduleController.createModulePermission },
   { method: 'POST', path: /^\/api\/actions\/?$/, handler: moduleController.createAction },
 
   // Permissions
   { method: 'GET', path: /^\/api\/permissions\/?$/, handler: permissionController.listPermissions },
   { method: 'POST', path: /^\/api\/permissions\/?$/, handler: permissionController.createPermission },
+  { method: 'PUT', path: /^\/api\/permissions\/[a-zA-Z0-9_-]+\/?$/, handler: permissionController.updatePermission },
+  { method: 'DELETE', path: /^\/api\/permissions\/[a-zA-Z0-9_-]+\/?$/, handler: permissionController.deletePermission },
 
   // Departments
   { method: 'GET', path: /^\/api\/departments\/?$/, handler: departmentController.listDepartments },
+  { method: 'POST', path: /^\/api\/departments\/?$/, handler: departmentController.createDepartment },
+  { method: 'PUT', path: /^\/api\/departments\/[a-zA-Z0-9_-]+\/?$/, handler: departmentController.updateDepartment },
+  { method: 'DELETE', path: /^\/api\/departments\/[a-zA-Z0-9_-]+\/?$/, handler: departmentController.deleteDepartment },
 
   // Support
   { method: 'GET', path: /^\/api\/support\/preview-code\/?$/, handler: supportController.previewSupportCode },
